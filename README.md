@@ -1,20 +1,32 @@
 # pandoc-convert
 
-`pandoc-convert` is a tiny, embeddable **Pandoc-as-a-service iframe**.
-Any domain can load `iframe.html` and request document conversions over `postMessage`.
+`pandoc-convert` is an embeddable **Pandoc-as-a-service iframe** bundled with **Vite v8**.
+It imports `pandoc-wasm` from npm (`pandoc-wasm@1.0.1`) and exposes conversion over `postMessage`.
 
-## Why
+## Setup
 
-This project is designed for scenarios where:
+```bash
+npm install
+npm run dev
+```
 
-- you do not want to ship Pandoc integration code in every app,
-- you want a consistent cross-origin conversion API,
-- you want browser-only execution via `pandoc-wasm`.
+Open:
+
+- `http://localhost:5173/demo.html`
+
+## Build
+
+```bash
+npm run build
+npm run preview
+```
 
 ## Files
 
-- `iframe.html`: the conversion service endpoint loaded in an iframe.
-- `demo.html`: example host page that talks to `iframe.html`.
+- `iframe.html`: iframe service entrypoint.
+- `demo.html`: host demo page.
+- `src/iframe.js`: service logic + `pandoc-wasm` adapter/bootstrap.
+- `src/demo.js`: host-side `postMessage` client demo.
 
 ## Message protocol
 
@@ -38,9 +50,6 @@ Host -> iframe request:
   }
 }
 ```
-
-> `payload.files[*].data` should be sent as an `ArrayBuffer` (or typed array), not a string.
-> You can pass transferables as the third argument to `postMessage` for efficient binary transfer.
 
 Iframe -> host success:
 
@@ -74,23 +83,17 @@ Iframe -> host error:
 ```html
 <iframe
   id="pandoc-service"
-  src="https://your-service.example/iframe.html?allow=https://your-app.example&version=1.0.1"
+  src="https://your-service.example/iframe.html?allow=https://your-app.example"
   hidden
 ></iframe>
 ```
 
-Parameters supported by `iframe.html`:
-
-- `allow`: comma-separated allowlist of origins allowed to call the service.
+- `allow`: comma-separated allowlist of origins permitted to call the service.
   - If omitted, all origins are accepted.
-- `version`: `pandoc-wasm` version to load from jsDelivr.
-  - Default: `1.0.1`
-  - Primary URL: `https://cdn.jsdelivr.net/npm/pandoc-wasm@<version>`
-  - Fallbacks: `.../src/index.browser.min.js`, then `.../src/index.browser.min.js/+esm`
-- `module`: optional override URL for the `pandoc-wasm` browser module.
-  - If `module` is provided, it takes precedence over `version`.
 
-## Host example with file transfer
+## Binary file payloads
+
+`payload.files[*].data` must be sent as `ArrayBuffer` (or typed array), and can be transferred:
 
 ```js
 const includeFileBuffer = new TextEncoder().encode('This is an extra file.').buffer;
@@ -111,15 +114,3 @@ iframe.contentWindow.postMessage(
   [includeFileBuffer],
 );
 ```
-
-## Local demo
-
-```bash
-python3 -m http.server 4173
-```
-
-Then open:
-
-- `http://localhost:4173/demo.html`
-
-The demo embeds `iframe.html?version=1.0.1` by default and uses same-origin messaging.
