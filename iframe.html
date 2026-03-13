@@ -27,7 +27,41 @@
         return allowedOrigins.includes(origin);
       }
 
+      function toUint8Array(value) {
+        if (value instanceof Uint8Array) return value;
+        if (value instanceof ArrayBuffer) return new Uint8Array(value);
+        if (ArrayBuffer.isView(value)) {
+          return new Uint8Array(value.buffer, value.byteOffset, value.byteLength);
+        }
+        throw new Error('File payload data must be an ArrayBuffer or typed array.');
+      }
+
+      function normalizePayload(payload = {}) {
+        const files = Array.isArray(payload.files)
+          ? payload.files.map((file, index) => {
+              if (!file || typeof file.path !== 'string' || file.path.length === 0) {
+                throw new Error(`files[${index}] must include a non-empty string path.`);
+              }
+
+              return {
+                path: file.path,
+                data: toUint8Array(file.data),
+              };
+            })
+          : [];
+
+        return {
+          source: payload.source ?? '',
+          from: payload.from,
+          to: payload.to,
+          args: payload.args || [],
+          files,
+        };
+      }
+
       function reply(targetWindow, targetOrigin, type, id, payload) {
+        if (!targetWindow || typeof targetWindow.postMessage !== 'function') return;
+
         targetWindow.postMessage(
           {
             channel: CHANNEL,
@@ -62,30 +96,36 @@
 
           if (typeof instance === 'function') {
             return {
-              convert: (payload) => instance(payload),
+              convert: (payload) => instance(normalizePayload(payload)),
             };
           }
 
           if (typeof instance?.convert === 'function') {
             return {
-              convert: (payload) =>
-                instance.convert(payload.source, {
-                  from: payload.from,
-                  to: payload.to,
-                  args: payload.args || [],
-                }),
+              convert: (payload) => {
+                const normalized = normalizePayload(payload);
+                return instance.convert(normalized.source, {
+                  from: normalized.from,
+                  to: normalized.to,
+                  args: normalized.args,
+                  files: normalized.files,
+                });
+              },
             };
           }
         }
 
         if (typeof candidate?.convert === 'function') {
           return {
-            convert: (payload) =>
-              candidate.convert(payload.source, {
-                from: payload.from,
-                to: payload.to,
-                args: payload.args || [],
-              }),
+            convert: (payload) => {
+              const normalized = normalizePayload(payload);
+              return candidate.convert(normalized.source, {
+                from: normalized.from,
+                to: normalized.to,
+                args: normalized.args,
+                files: normalized.files,
+              });
+            },
           };
         }
 

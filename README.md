@@ -28,10 +28,19 @@ Host -> iframe request:
   "payload": {
     "source": "# Hello",
     "from": "markdown",
-    "to": "html"
+    "to": "html",
+    "files": [
+      {
+        "path": "include.txt",
+        "data": "ArrayBuffer"
+      }
+    ]
   }
 }
 ```
+
+> `payload.files[*].data` should be sent as an `ArrayBuffer` (or typed array), not a string.
+> You can pass transferables as the third argument to `postMessage` for efficient binary transfer.
 
 Iframe -> host success:
 
@@ -79,6 +88,28 @@ Parameters supported by `iframe.html`:
   - Resolved URL: `https://cdn.jsdelivr.net/npm/pandoc-wasm@<version>/src/index.browser.min.js`
 - `module`: optional override URL for the `pandoc-wasm` browser module.
   - If `module` is provided, it takes precedence over `version`.
+
+## Host example with file transfer
+
+```js
+const includeFileBuffer = new TextEncoder().encode('This is an extra file.').buffer;
+
+iframe.contentWindow.postMessage(
+  {
+    channel: 'pandoc-convert',
+    type: 'pandoc:convert',
+    id: crypto.randomUUID(),
+    payload: {
+      source: '# Hello',
+      from: 'markdown',
+      to: 'html',
+      files: [{ path: 'include.txt', data: includeFileBuffer }],
+    },
+  },
+  window.location.origin,
+  [includeFileBuffer],
+);
+```
 
 ## Local demo
 
