@@ -14,10 +14,10 @@
         .map((o) => o.trim())
         .filter(Boolean);
 
-      const requestedVersion = params.get('version') || '1.0.3';
+      const requestedVersion = params.get('version') || '1.0.1';
       const moduleUrl =
         params.get('module') ||
-        `https://cdn.jsdelivr.net/npm/pandoc-wasm@${requestedVersion}/+esm`;
+        `https://cdn.jsdelivr.net/npm/pandoc-wasm@${requestedVersion}`;
 
       let adapter;
       let initError;
@@ -130,7 +130,7 @@
         }
 
         throw new Error(
-          'Unable to resolve a pandoc-wasm adapter. Pass ?version=... for jsDelivr or ?module=... for a compatible ESM build.',
+          'Unable to resolve a pandoc-wasm adapter. Pass ?version=... for jsDelivr or ?module=... for a compatible module URL.',
         );
       }
 
