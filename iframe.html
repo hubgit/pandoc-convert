@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>pandoc-convert iframe service</title>
+  </head>
+  <body>
+    <script type="module">
+      const CHANNEL = 'pandoc-convert';
+      const params = new URLSearchParams(window.location.search);
+      const allowedOrigins = (params.get('allow') || '')
+        .split(',')
+        .map((o) => o.trim())
+        .filter(Boolean);
+
+      const requestedVersion = params.get('version') || '1.0.1';
+      const moduleUrl =
+        params.get('module') ||
+        `https://cdn.jsdelivr.net/npm/pandoc-wasm@${requestedVersion}/src/index.browser.min.js`;
+
+      let adapter;
+      let initError;
+
+      function isOriginAllowed(origin) {
+        if (allowedOrigins.length === 0) return true;
+        return allowedOrigins.includes(origin);
+      }
+
+      function reply(targetWindow, targetOrigin, type, id, payload) {
+        targetWindow.postMessage(
+          {
+            channel: CHANNEL,
+            type,
+            id,
+            payload,
+          },
+          targetOrigin,
+        );
+      }
+
+      async function importPandocModule() {
+        try {
+          return await import(moduleUrl);
+        } catch (initialError) {
+          const fallbackUrl = `${moduleUrl}?module`;
+          try {
+            return await import(fallbackUrl);
+          } catch {
+            throw initialError;
+          }
+        }
+      }
+
+      async function initPandoc() {
+        const mod = await importPandocModule();
+        const candidate =
+          mod?.createPandoc ?? mod?.createConverter ?? mod?.Pandoc ?? mod?.default ?? mod;
+
+        if (typeof candidate === 'function') {
+          const instance = await candidate();
+
+          if (typeof instance === 'function') {
+            return {
+              convert: (payload) => instance(payload),
+            };
+          }
+
+          if (typeof instance?.convert === 'function') {
+            return {
+              convert: (payload) =>
+                instance.convert(payload.source, {
+                  from: payload.from,
+                  to: payload.to,
+                  args: payload.args || [],
+                }),
+            };
+          }
+        }
+
+        if (typeof candidate?.convert === 'function') {
+          return {
+            convert: (payload) =>
+              candidate.convert(payload.source, {
+                from: payload.from,
+                to: payload.to,
+                args: payload.args || [],
+              }),
+          };
+        }
+
+        throw new Error(
+          'Unable to resolve a pandoc-wasm adapter. Pass ?version=... for jsDelivr or ?module=... for a compatible ESM build.',
+        );
+      }
+
+      try {
+        adapter = await initPandoc();
+      } catch (err) {
+        initError = err;
+      }
+
+      window.addEventListener('message', async (event) => {
+        const message = event.data;
+
+        if (!message || message.channel !== CHANNEL || message.type !== 'pandoc:convert') {
+          return;
+        }
+
+        if (!isOriginAllowed(event.origin)) {
+          reply(event.source, event.origin, 'pandoc:error', message.id, {
+            message: `Origin not allowed: ${event.origin}`,
+          });
+          return;
+        }
+
+        if (initError) {
+          reply(event.source, event.origin, 'pandoc:error', message.id, {
+            message: initError.message,
+            stack: initError.stack,
+          });
+          return;
+        }
+
+        try {
+          const output = await adapter.convert(message.payload || {});
+          reply(event.source, event.origin, 'pandoc:result', message.id, { output });
+        } catch (err) {
+          reply(event.source, event.origin, 'pandoc:error', message.id, {
+            message: err.message,
+            stack: err.stack,
+          });
+        }
+      });
+
+      window.parent?.postMessage(
+        {
+          channel: CHANNEL,
+          type: 'pandoc:ready',
+          payload: {
+            requestedVersion,
+            moduleUrl,
+            allowedOrigins,
+            initialized: !initError,
+            error: initError?.message,
+          },
+        },
+        '*',
+      );
+    </script>
+  </body>
+</html>
