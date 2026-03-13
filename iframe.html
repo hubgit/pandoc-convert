@@ -14,10 +14,10 @@
         .map((o) => o.trim())
         .filter(Boolean);
 
-      const requestedVersion = params.get('version') || '1.0.1';
+      const requestedVersion = params.get('version') || '1.0.3';
       const moduleUrl =
         params.get('module') ||
-        `https://cdn.jsdelivr.net/npm/pandoc-wasm@${requestedVersion}/src/index.browser.min.js`;
+        `https://cdn.jsdelivr.net/npm/pandoc-wasm@${requestedVersion}/+esm`;
 
       let adapter;
       let initError;
@@ -77,7 +77,7 @@
         try {
           return await import(moduleUrl);
         } catch (initialError) {
-          const fallbackUrl = `${moduleUrl}?module`;
+          const fallbackUrl = `${moduleUrl}${moduleUrl.includes('?') ? '&' : '?'}module`; // compatibility fallback
           try {
             return await import(fallbackUrl);
           } catch {

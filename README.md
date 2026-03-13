@@ -74,7 +74,7 @@ Iframe -> host error:
 ```html
 <iframe
   id="pandoc-service"
-  src="https://your-service.example/iframe.html?allow=https://your-app.example&version=1.0.1"
+  src="https://your-service.example/iframe.html?allow=https://your-app.example&version=1.0.3"
   hidden
 ></iframe>
 ```
@@ -84,8 +84,8 @@ Parameters supported by `iframe.html`:
 - `allow`: comma-separated allowlist of origins allowed to call the service.
   - If omitted, all origins are accepted.
 - `version`: `pandoc-wasm` version to load from jsDelivr.
-  - Default: `1.0.1`
-  - Resolved URL: `https://cdn.jsdelivr.net/npm/pandoc-wasm@<version>/src/index.browser.min.js`
+  - Default: `1.0.3`
+  - Resolved URL: `https://cdn.jsdelivr.net/npm/pandoc-wasm@<version>/+esm`
 - `module`: optional override URL for the `pandoc-wasm` browser module.
   - If `module` is provided, it takes precedence over `version`.
 
@@ -121,4 +121,4 @@ Then open:
 
 - `http://localhost:4173/demo.html`
 
-The demo embeds `iframe.html?version=1.0.1` by default and uses same-origin messaging.
+The demo embeds `iframe.html?version=1.0.3` by default and uses same-origin messaging.
