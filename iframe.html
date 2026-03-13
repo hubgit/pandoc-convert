@@ -15,12 +15,12 @@
         .filter(Boolean);
 
       const requestedVersion = params.get('version') || '1.0.1';
-      const moduleUrl =
-        params.get('module') ||
-        `https://cdn.jsdelivr.net/npm/pandoc-wasm@${requestedVersion}`;
+      const packageUrl = `https://cdn.jsdelivr.net/npm/pandoc-wasm@${requestedVersion}`;
+      const moduleUrl = params.get('module') || packageUrl;
 
       let adapter;
       let initError;
+      let resolvedModuleUrl = moduleUrl;
 
       function isOriginAllowed(origin) {
         if (allowedOrigins.length === 0) return true;
@@ -74,16 +74,28 @@
       }
 
       async function importPandocModule() {
-        try {
-          return await import(moduleUrl);
-        } catch (initialError) {
-          const fallbackUrl = `${moduleUrl}${moduleUrl.includes('?') ? '&' : '?'}module`; // compatibility fallback
+        const explicitModule = params.has('module');
+        const candidateUrls = explicitModule
+          ? [moduleUrl, `${moduleUrl}${moduleUrl.includes('?') ? '&' : '?'}module`]
+          : [
+              packageUrl,
+              `${packageUrl}/src/index.browser.min.js`,
+              `${packageUrl}/src/index.browser.min.js/+esm`,
+              `${packageUrl}/src/index.browser.min.js/+esm?module`,
+            ];
+
+        let lastError;
+        for (const candidateUrl of candidateUrls) {
           try {
-            return await import(fallbackUrl);
-          } catch {
-            throw initialError;
+            const mod = await import(candidateUrl);
+            resolvedModuleUrl = candidateUrl;
+            return mod;
+          } catch (error) {
+            lastError = error;
           }
         }
+
+        throw lastError;
       }
 
       async function initPandoc() {
@@ -179,7 +191,7 @@
           type: 'pandoc:ready',
           payload: {
             requestedVersion,
-            moduleUrl,
+            moduleUrl: resolvedModuleUrl,
             allowedOrigins,
             initialized: !initError,
             error: initError?.message,

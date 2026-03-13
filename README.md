@@ -85,7 +85,8 @@ Parameters supported by `iframe.html`:
   - If omitted, all origins are accepted.
 - `version`: `pandoc-wasm` version to load from jsDelivr.
   - Default: `1.0.1`
-  - Resolved URL: `https://cdn.jsdelivr.net/npm/pandoc-wasm@<version>`
+  - Primary URL: `https://cdn.jsdelivr.net/npm/pandoc-wasm@<version>`
+  - Fallbacks: `.../src/index.browser.min.js`, then `.../src/index.browser.min.js/+esm`
 - `module`: optional override URL for the `pandoc-wasm` browser module.
   - If `module` is provided, it takes precedence over `version`.
 
